@@ -764,8 +764,11 @@ function renderRoadmap(total, td){
   const s=STAGES[cur-1];
   td=td||{tag:'',kadai:'',ex1:{title:''},ex2:{title:''}};
 
-  // ステージごとのカラー
-  const COLS=['#26d4b4','#4daaff','#9b7fe8','#e06bab','#ffcb00'];
+  // ステージカラー：通過済み=スチール、現在地=ゴールド、未到達=ダーク
+  const COLS=['#4a7090','#4a7090','#4a7090','#4a7090','#4a7090'];
+  const activeCol='#ffcb00';
+  const pastCol='#3a5870';
+  const futureCol='#1e3058';
 
   const W=750,H=298;
   const CW=120,CX=[75,225,375,525,675];
@@ -773,12 +776,12 @@ function renderRoadmap(total, td){
 
   let svg=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;">`;
 
-  // 接続線＋中抜きドット（通過済みは色付き）
+  // 接続線＋中抜きドット
   for(let i=0;i<4;i++){
     const x1=CX[i]+CW/2, x2=CX[i+1]-CW/2, mx=(x1+x2)/2;
     const done=i<cur-1;
-    svg+=`<line x1="${x1}" y1="${lineY}" x2="${x2}" y2="${lineY}" stroke="${done?COLS[i]:'rgba(255,255,255,0.2)'}" stroke-width="${done?2:1.5}"/>`;
-    svg+=`<circle cx="${mx}" cy="${lineY}" r="5" fill="#081125" stroke="${done?COLS[i]:'rgba(255,255,255,0.28)'}" stroke-width="1.5"/>`;
+    svg+=`<line x1="${x1}" y1="${lineY}" x2="${x2}" y2="${lineY}" stroke="${done?'rgba(74,112,144,0.7)':'rgba(255,255,255,0.1)'}" stroke-width="${done?2:1.2}"/>`;
+    svg+=`<circle cx="${mx}" cy="${lineY}" r="4" fill="#081125" stroke="${done?'#4a7090':'rgba(255,255,255,0.2)'}" stroke-width="1.5"/>`;
   }
 
   STAGES.forEach((st,i)=>{
@@ -786,44 +789,42 @@ function renderRoadmap(total, td){
     const active=st.num===cur;
     const past=st.num<cur;
     const ch=active?240:214;
-    const col=COLS[i];
-    const textDark=i===4&&active; // ゴールドの時は黒文字
+    const col=active?activeCol:(past?pastCol:futureCol);
 
     // 今ここバッジ
     if(active){
-      const bw=66,bh=26,by=cy-bh-8;
-      svg+=`<rect x="${cx-bw/2}" y="${by}" width="${bw}" height="${bh}" rx="13" fill="${col}"/>`;
-      svg+=`<text x="${cx}" y="${by+18}" text-anchor="middle" font-size="11" font-weight="700" fill="${textDark?'#081125':'white'}" font-family="sans-serif">今ここ</text>`;
-      svg+=`<polygon points="${cx-5},${cy} ${cx+5},${cy} ${cx},${cy+6}" fill="${col}"/>`;
+      const bw=66,bh=24,by=cy-bh-8;
+      svg+=`<rect x="${cx-bw/2}" y="${by}" width="${bw}" height="${bh}" rx="12" fill="${activeCol}"/>`;
+      svg+=`<text x="${cx}" y="${by+17}" text-anchor="middle" font-size="10" font-weight="800" fill="#081125" font-family="sans-serif" letter-spacing="1">今ここ</text>`;
+      svg+=`<polygon points="${cx-5},${cy} ${cx+5},${cy} ${cx},${cy+5}" fill="${activeCol}"/>`;
     }
 
     // カード本体
-    const fillA=active?`rgba(${hexToRgb(col)},0.18)`:(past?`rgba(${hexToRgb(col)},0.08)`:'rgba(255,255,255,0.04)');
-    const strA=active?col:(past?`rgba(${hexToRgb(col)},0.5)`:'rgba(255,255,255,0.14)');
-    svg+=`<rect x="${lx}" y="${cy}" width="${CW}" height="${ch}" rx="14" fill="${fillA}" stroke="${strA}" stroke-width="${active?2:1}"/>`;
+    const fillA=active?'rgba(255,203,0,0.1)':(past?'rgba(74,112,144,0.1)':'rgba(255,255,255,0.03)');
+    const strA=active?'rgba(255,203,0,0.6)':(past?'rgba(74,112,144,0.35)':'rgba(255,255,255,0.08)');
+    svg+=`<rect x="${lx}" y="${cy}" width="${CW}" height="${ch}" rx="12" fill="${fillA}" stroke="${strA}" stroke-width="${active?1.5:1}"/>`;
 
     // 番号
     const n=String(st.num).padStart(2,'0');
     const nY=cy+(active?55:46);
-    const numFill=active?col:(past?`rgba(${hexToRgb(col)},0.6)`:'rgba(255,255,255,0.25)');
-    svg+=`<text x="${cx}" y="${nY}" text-anchor="middle" font-size="${active?38:30}" font-weight="300" fill="${numFill}" font-family="'Helvetica Neue',Helvetica,Arial,sans-serif">${n}</text>`;
+    const numFill=active?activeCol:(past?'rgba(74,112,144,0.9)':'rgba(255,255,255,0.18)');
+    svg+=`<text x="${cx}" y="${nY}" text-anchor="middle" font-size="${active?38:30}" font-weight="200" fill="${numFill}" font-family="'Helvetica Neue',Helvetica,Arial,sans-serif">${n}</text>`;
 
     // 区切り線
     const dY=nY+(active?20:17);
-    svg+=`<line x1="${lx+14}" y1="${dY}" x2="${lx+CW-14}" y2="${dY}" stroke="${active?col:'rgba(255,255,255,0.12)'}" stroke-width="1"/>`;
+    svg+=`<line x1="${lx+16}" y1="${dY}" x2="${lx+CW-16}" y2="${dY}" stroke="${active?'rgba(255,203,0,0.4)':'rgba(255,255,255,0.08)'}" stroke-width="1"/>`;
 
     // ステージ名
     const nmY=dY+(active?28:23);
-    svg+=`<text x="${cx}" y="${nmY}" text-anchor="middle" font-size="${active?13:11}" font-weight="700" fill="${active?'white':'rgba(255,255,255,0.75)'}" font-family="sans-serif">${st.label}</text>`;
+    svg+=`<text x="${cx}" y="${nmY}" text-anchor="middle" font-size="${active?13:11}" font-weight="${active?700:600}" fill="${active?'white':(past?'rgba(255,255,255,0.65)':'rgba(255,255,255,0.3)')}" font-family="sans-serif">${st.label}</text>`;
 
     // 説明
     const dcY=nmY+(active?21:18);
-    svg+=`<text x="${cx}" y="${dcY}" text-anchor="middle" font-size="${active?9:8}" fill="rgba(255,255,255,0.5)" font-family="sans-serif">${st.desc}</text>`;
+    svg+=`<text x="${cx}" y="${dcY}" text-anchor="middle" font-size="${active?9:8}" fill="${active?'rgba(255,255,255,0.55)':(past?'rgba(255,255,255,0.3)':'rgba(255,255,255,0.2)')}" font-family="sans-serif">${st.desc}</text>`;
 
     // 点数
     const ptY=dcY+(active?38:26);
-    const ptFill=active?col:(past?`rgba(${hexToRgb(col)},0.55)`:'rgba(255,255,255,0.3)');
-    svg+=`<text x="${cx}" y="${ptY}" text-anchor="middle" font-size="${active?22:10}" font-weight="${active?700:400}" fill="${ptFill}" font-family="sans-serif">${active?total+'点':st.pts}</text>`;
+    svg+=`<text x="${cx}" y="${ptY}" text-anchor="middle" font-size="${active?22:10}" font-weight="${active?700:400}" fill="${active?activeCol:(past?'rgba(74,112,144,0.7)':'rgba(255,255,255,0.2)')}" font-family="sans-serif">${active?total+'点':st.pts}</text>`;
   });
 
   svg+='</svg>';
