@@ -311,7 +311,7 @@ tbody tr:nth-child(even) td{background:rgba(255,255,255,.025);}
 
   <div class="hdr">
     <div class="hdr-l">診断結果</div>
-    <div class="hdr-r"><span id="r_name"></span> 様</div>
+    <div class="hdr-r"><span id="r_name"></span></div>
   </div>
 
   <div class="top-row">
@@ -686,7 +686,7 @@ function renderRELevel(level){
 
 function update(){
   const name=document.getElementById('f_name').value||'';
-  setText('r_name', name);
+  setText('r_name', name ? name+' 様' : '');
   setText('r_name_bar', name ? name+' 様' : '');
 
   const bw=gv('f_bw');
@@ -1034,11 +1034,15 @@ document.getElementById('f_name').addEventListener('input',function(){
 });
 
 // ══ localStorage 永続化 ══
+const STORAGE_VER='v3';
 function saveToStorage(){
-  try{localStorage.setItem('sd_persons',JSON.stringify(persons));localStorage.setItem('sd_idx',currentIdx);}catch(e){}
+  try{localStorage.setItem('sd_persons',JSON.stringify(persons));localStorage.setItem('sd_idx',currentIdx);localStorage.setItem('sd_ver',STORAGE_VER);}catch(e){}
 }
 function loadFromStorage(){
   try{
+    if(localStorage.getItem('sd_ver')!==STORAGE_VER){
+      localStorage.removeItem('sd_persons');localStorage.removeItem('sd_idx');localStorage.setItem('sd_ver',STORAGE_VER);return;
+    }
     const s=localStorage.getItem('sd_persons');
     if(s){const p=JSON.parse(s);if(Array.isArray(p)&&p.length)persons=p;}
     const idx=parseInt(localStorage.getItem('sd_idx')||'0');
