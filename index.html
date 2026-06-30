@@ -318,7 +318,7 @@ tbody tr:nth-child(even) td{background:rgba(255,255,255,.04);}
 
   <div class="top-row">
     <div class="score-box">
-      <div class="slbl">総合点数</div>
+      <div class="slbl" style="display:flex;justify-content:space-between;align-items:center;">総合点数<span id="r_name_bar" style="font-size:13px;font-weight:500;letter-spacing:.5px;color:rgba(255,255,255,.85);"></span></div>
       <div class="score-disp">
         <span class="score-num" id="r_score">0</span>
         <span class="score-unit">点</span>
@@ -688,6 +688,7 @@ function renderRELevel(level){
 function update(){
   const name=document.getElementById('f_name').value||'';
   setText('r_name', name);
+  setText('r_name_bar', name ? name+' 様' : '');
 
   const bw=gv('f_bw');
   const raw={
