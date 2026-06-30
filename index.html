@@ -520,6 +520,7 @@ function calcKato(bw, calf) {
   return 1;
 }
 function setText(id,v){ const e=document.getElementById(id); if(e) e.textContent=v; }
+function hexToRgb(h){const r=parseInt(h.slice(1,3),16),g=parseInt(h.slice(3,5),16),b=parseInt(h.slice(5,7),16);return `${r},${g},${b}`;}
 function setHtml(id,v){ const e=document.getElementById(id); if(e) e.innerHTML=v; }
 
 function colorClass(avg){
@@ -761,8 +762,10 @@ const STAGE_COLORS=['#1a6fe8','#0a9de1','#0dbfdc','#5fd1ef','#ffcb00'];
 function renderRoadmap(total, td){
   const cur=getCurrentStage(total);
   const s=STAGES[cur-1];
-  const AC='#0a6fe1';
   td=td||{tag:'',kadai:'',ex1:{title:''},ex2:{title:''}};
+
+  // ステージごとのカラー
+  const COLS=['#26d4b4','#4daaff','#9b7fe8','#e06bab','#ffcb00'];
 
   const W=750,H=298;
   const CW=120,CX=[75,225,375,525,675];
@@ -770,90 +773,91 @@ function renderRoadmap(total, td){
 
   let svg=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;">`;
 
-  // 接続線＋中抜きドット
+  // 接続線＋中抜きドット（通過済みは色付き）
   for(let i=0;i<4;i++){
     const x1=CX[i]+CW/2, x2=CX[i+1]-CW/2, mx=(x1+x2)/2;
-    svg+=`<line x1="${x1}" y1="${lineY}" x2="${x2}" y2="${lineY}" stroke="rgba(255,255,255,0.28)" stroke-width="1.5"/>`;
-    svg+=`<circle cx="${mx}" cy="${lineY}" r="5" fill="#081125" stroke="rgba(255,255,255,0.38)" stroke-width="1.5"/>`;
+    const done=i<cur-1;
+    svg+=`<line x1="${x1}" y1="${lineY}" x2="${x2}" y2="${lineY}" stroke="${done?COLS[i]:'rgba(255,255,255,0.2)'}" stroke-width="${done?2:1.5}"/>`;
+    svg+=`<circle cx="${mx}" cy="${lineY}" r="5" fill="#081125" stroke="${done?COLS[i]:'rgba(255,255,255,0.28)'}" stroke-width="1.5"/>`;
   }
 
   STAGES.forEach((st,i)=>{
     const cx=CX[i], lx=cx-CW/2;
     const active=st.num===cur;
+    const past=st.num<cur;
     const ch=active?240:214;
+    const col=COLS[i];
+    const textDark=i===4&&active; // ゴールドの時は黒文字
 
     // 今ここバッジ
     if(active){
       const bw=66,bh=26,by=cy-bh-8;
-      svg+=`<rect x="${cx-bw/2}" y="${by}" width="${bw}" height="${bh}" rx="13" fill="${AC}"/>`;
-      svg+=`<text x="${cx}" y="${by+18}" text-anchor="middle" font-size="11" font-weight="700" fill="white" font-family="sans-serif">今ここ</text>`;
-      svg+=`<polygon points="${cx-5},${cy} ${cx+5},${cy} ${cx},${cy+6}" fill="${AC}"/>`;
+      svg+=`<rect x="${cx-bw/2}" y="${by}" width="${bw}" height="${bh}" rx="13" fill="${col}"/>`;
+      svg+=`<text x="${cx}" y="${by+18}" text-anchor="middle" font-size="11" font-weight="700" fill="${textDark?'#081125':'white'}" font-family="sans-serif">今ここ</text>`;
+      svg+=`<polygon points="${cx-5},${cy} ${cx+5},${cy} ${cx},${cy+6}" fill="${col}"/>`;
     }
 
     // カード本体
-    const fill=active?'rgba(10,111,225,0.18)':'rgba(255,255,255,0.06)';
-    const str=active?AC:'rgba(255,255,255,0.2)';
-    svg+=`<rect x="${lx}" y="${cy}" width="${CW}" height="${ch}" rx="14" fill="${fill}" stroke="${str}" stroke-width="${active?1.5:1}"/>`;
+    const fillA=active?`rgba(${hexToRgb(col)},0.18)`:(past?`rgba(${hexToRgb(col)},0.08)`:'rgba(255,255,255,0.04)');
+    const strA=active?col:(past?`rgba(${hexToRgb(col)},0.5)`:'rgba(255,255,255,0.14)');
+    svg+=`<rect x="${lx}" y="${cy}" width="${CW}" height="${ch}" rx="14" fill="${fillA}" stroke="${strA}" stroke-width="${active?2:1}"/>`;
 
     // 番号
     const n=String(st.num).padStart(2,'0');
     const nY=cy+(active?55:46);
-    svg+=`<text x="${cx}" y="${nY}" text-anchor="middle" font-size="${active?38:30}" font-weight="300" fill="white" font-family="'Helvetica Neue',Helvetica,Arial,sans-serif">${n}</text>`;
+    const numFill=active?col:(past?`rgba(${hexToRgb(col)},0.6)`:'rgba(255,255,255,0.25)');
+    svg+=`<text x="${cx}" y="${nY}" text-anchor="middle" font-size="${active?38:30}" font-weight="300" fill="${numFill}" font-family="'Helvetica Neue',Helvetica,Arial,sans-serif">${n}</text>`;
 
     // 区切り線
     const dY=nY+(active?20:17);
-    svg+=`<line x1="${lx+14}" y1="${dY}" x2="${lx+CW-14}" y2="${dY}" stroke="${active?AC:'rgba(255,255,255,0.18)'}" stroke-width="1"/>`;
+    svg+=`<line x1="${lx+14}" y1="${dY}" x2="${lx+CW-14}" y2="${dY}" stroke="${active?col:'rgba(255,255,255,0.12)'}" stroke-width="1"/>`;
 
     // ステージ名
     const nmY=dY+(active?28:23);
-    svg+=`<text x="${cx}" y="${nmY}" text-anchor="middle" font-size="${active?13:11}" font-weight="700" fill="white" font-family="sans-serif">${st.label}</text>`;
+    svg+=`<text x="${cx}" y="${nmY}" text-anchor="middle" font-size="${active?13:11}" font-weight="700" fill="${active?'white':'rgba(255,255,255,0.75)'}" font-family="sans-serif">${st.label}</text>`;
 
     // 説明
     const dcY=nmY+(active?21:18);
-    svg+=`<text x="${cx}" y="${dcY}" text-anchor="middle" font-size="${active?9:8}" fill="rgba(255,255,255,0.55)" font-family="sans-serif">${st.desc}</text>`;
+    svg+=`<text x="${cx}" y="${dcY}" text-anchor="middle" font-size="${active?9:8}" fill="rgba(255,255,255,0.5)" font-family="sans-serif">${st.desc}</text>`;
 
     // 点数
     const ptY=dcY+(active?38:26);
-    svg+=`<text x="${cx}" y="${ptY}" text-anchor="middle" font-size="${active?22:10}" font-weight="${active?700:400}" fill="${active?AC:'rgba(255,255,255,0.38)'}" font-family="sans-serif">${active?total+'点':st.pts}</text>`;
+    const ptFill=active?col:(past?`rgba(${hexToRgb(col)},0.55)`:'rgba(255,255,255,0.3)');
+    svg+=`<text x="${cx}" y="${ptY}" text-anchor="middle" font-size="${active?22:10}" font-weight="${active?700:400}" fill="${ptFill}" font-family="sans-serif">${active?total+'点':st.pts}</text>`;
   });
 
   svg+='</svg>';
 
-  // 3枚インフォカード（タイプ別処方箋データを使用）
+  // 3枚インフォカード
   const next=cur<5?STAGES[cur]:null;
-  const ptsDiff=next?(next.pts.split('〜')[0].replace('点','')):'−';
-
-  const cs='flex:1;border:1.5px solid rgba(255,255,255,0.13);border-radius:14px;padding:15px 14px;background:rgba(255,255,255,0.97);display:flex;gap:12px;align-items:flex-start;';
-  const is='width:42px;height:42px;border-radius:50%;background:#eceff6;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;margin-top:2px;';
-  const ds='width:1px;background:#dde3ee;flex-shrink:0;align-self:stretch;margin:0 2px;';
 
   const cards=`<div style="display:flex;gap:12px;padding:10px 14px 16px;background:#081125;">
-    <div style="${cs}">
-      <div style="${is}">🎯</div>
-      <div style="${ds}"></div>
+    <div style="flex:1;border:1.5px solid rgba(255,120,70,0.4);border-radius:14px;padding:15px 14px;background:rgba(255,100,50,0.08);display:flex;gap:12px;align-items:flex-start;">
+      <div style="width:42px;height:42px;border-radius:50%;background:rgba(255,100,50,0.22);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;margin-top:2px;">🎯</div>
+      <div style="width:1px;background:rgba(255,120,70,0.25);flex-shrink:0;align-self:stretch;margin:0 2px;"></div>
       <div>
-        <div style="font-size:8px;color:#aaa;margin-bottom:3px;font-family:sans-serif;letter-spacing:.5px;">優先課題</div>
-        <div style="font-size:12px;font-weight:800;color:#0d1a2e;margin-bottom:7px;font-family:sans-serif;line-height:1.4;">${td.kadai_title||s.desc}</div>
-        <div style="font-size:8px;color:#555;line-height:1.7;font-family:sans-serif;">${td.kadai_card||(td.kadai||s.msg).split('。')[0]+'。'}</div>
+        <div style="font-size:8px;color:#ff8a60;margin-bottom:3px;font-family:sans-serif;letter-spacing:.5px;font-weight:700;">優先課題</div>
+        <div style="font-size:12px;font-weight:800;color:white;margin-bottom:7px;font-family:sans-serif;line-height:1.4;">${td.kadai_title||s.desc}</div>
+        <div style="font-size:8px;color:rgba(255,255,255,0.6);line-height:1.7;font-family:sans-serif;">${td.kadai_card||(td.kadai||s.msg).split('。')[0]+'。'}</div>
       </div>
     </div>
-    <div style="${cs}">
-      <div style="${is}">📈</div>
-      <div style="${ds}"></div>
+    <div style="flex:1;border:1.5px solid rgba(77,170,255,0.4);border-radius:14px;padding:15px 14px;background:rgba(77,150,255,0.08);display:flex;gap:12px;align-items:flex-start;">
+      <div style="width:42px;height:42px;border-radius:50%;background:rgba(77,150,255,0.22);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;margin-top:2px;">📈</div>
+      <div style="width:1px;background:rgba(77,170,255,0.25);flex-shrink:0;align-self:stretch;margin:0 2px;"></div>
       <div>
-        <div style="font-size:8px;color:#aaa;margin-bottom:3px;font-family:sans-serif;letter-spacing:.5px;">次のステージへ</div>
-        <div style="font-size:12px;font-weight:800;color:#0d1a2e;margin-bottom:7px;font-family:sans-serif;line-height:1.4;">${next?next.label+'（'+next.pts+'）':'目標達成！'}</div>
-        <div style="font-size:8px;color:#555;line-height:1.7;font-family:sans-serif;">${next?'今は'+total+'点。あと'+(parseInt(next.pts)-total)+'点で次のステージへ。'+next.desc+'を意識して取り組もう。':'全ステージ制覇！コンディション管理を徹底し自己ベスト更新を。'}</div>
+        <div style="font-size:8px;color:#64b8ff;margin-bottom:3px;font-family:sans-serif;letter-spacing:.5px;font-weight:700;">次のステージへ</div>
+        <div style="font-size:12px;font-weight:800;color:white;margin-bottom:7px;font-family:sans-serif;line-height:1.4;">${next?next.label+'（'+next.pts+'）':'目標達成！'}</div>
+        <div style="font-size:8px;color:rgba(255,255,255,0.6);line-height:1.7;font-family:sans-serif;">${next?'今は'+total+'点。あと'+(parseInt(next.pts)-total)+'点で次のステージへ。'+next.desc+'を意識して取り組もう。':'全ステージ制覇！コンディション管理を徹底し自己ベスト更新を。'}</div>
       </div>
     </div>
-    <div style="${cs}">
-      <div style="${is}">🏋️</div>
-      <div style="${ds}"></div>
+    <div style="flex:1;border:1.5px solid rgba(70,210,130,0.4);border-radius:14px;padding:15px 14px;background:rgba(60,200,120,0.08);display:flex;gap:12px;align-items:flex-start;">
+      <div style="width:42px;height:42px;border-radius:50%;background:rgba(60,200,120,0.22);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;margin-top:2px;">🏋️</div>
+      <div style="width:1px;background:rgba(70,210,130,0.25);flex-shrink:0;align-self:stretch;margin:0 2px;"></div>
       <div>
-        <div style="font-size:8px;color:#aaa;margin-bottom:3px;font-family:sans-serif;letter-spacing:.5px;">今週やること</div>
-        <div style="font-size:12px;font-weight:800;color:#0d1a2e;margin-bottom:7px;font-family:sans-serif;line-height:1.4;">① ${td.ex1?td.ex1.title:s.label}</div>
-        <div style="font-size:12px;font-weight:800;color:#0d1a2e;margin-bottom:7px;font-family:sans-serif;line-height:1.4;">② ${td.ex2?td.ex2.title:''}</div>
-        <div style="font-size:8px;color:#888;line-height:1.6;font-family:sans-serif;">↑ 詳細はページ下部の処方箋を確認</div>
+        <div style="font-size:8px;color:#50dc8c;margin-bottom:3px;font-family:sans-serif;letter-spacing:.5px;font-weight:700;">今週やること</div>
+        <div style="font-size:12px;font-weight:800;color:white;margin-bottom:7px;font-family:sans-serif;line-height:1.4;">① ${td.ex1?td.ex1.title:s.label}</div>
+        <div style="font-size:12px;font-weight:800;color:white;margin-bottom:7px;font-family:sans-serif;line-height:1.4;">② ${td.ex2?td.ex2.title:''}</div>
+        <div style="font-size:8px;color:rgba(255,255,255,0.45);line-height:1.6;font-family:sans-serif;">↑ 詳細はページ下部の処方箋を確認</div>
       </div>
     </div>
   </div>`;
