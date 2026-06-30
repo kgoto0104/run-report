@@ -121,7 +121,7 @@ body{font-family:'Hiragino Kaku Gothic Pro','Yu Gothic',sans-serif;background:#0
 .hseg.on{background:linear-gradient(90deg,#1e72a8,#3da3d4);box-shadow:0 0 8px rgba(61,163,212,.3);}
 .horiz-bar-label{font-size:13px;color:#8faabb;font-weight:600;}
 .radar-inner{display:flex;justify-content:center;align-items:center;padding:10px 0;}
-#radar_svg{width:490px;height:296px;}
+#radar_svg{width:490px;height:auto;}
 
 /* 課題 */
 .kadai-row{border-bottom:1px solid rgba(255,255,255,.08);}
@@ -359,7 +359,7 @@ tbody tr:nth-child(even) td{background:rgba(255,255,255,.025);}
     <div>
       <div class="slbl">運動機能の評価</div>
       <div class="radar-inner">
-        <svg id="radar_svg" viewBox="0 0 430 260" width="430" height="260"
+        <svg id="radar_svg" viewBox="0 0 430 278" width="430" height="278"
              font-family="'Hiragino Kaku Gothic Pro','Yu Gothic',sans-serif"></svg>
       </div>
     </div>
@@ -570,7 +570,7 @@ const AXES=[
 
 function drawRadar(avgs, raw){
   const svg=document.getElementById('radar_svg');
-  const CX=200,CY=130,R=82;
+  const CX=200,CY=138,R=100;
   function pt(angle,r){
     const rad=angle*Math.PI/180;
     return [CX+r*Math.cos(rad),CY+r*Math.sin(rad)];
@@ -609,8 +609,16 @@ function drawRadar(avgs, raw){
   AXES.forEach(a=>{
     const [x,y]=pt(a.angle,R+22);
     const anchor=x<CX-8?'end':x>CX+8?'start':'middle';
-    h+=`<text x="${Math.round(x)}" y="${Math.round(y)-4}" text-anchor="${anchor}" font-size="12" font-weight="700" fill="#c8d4e8">${a.label}</text>`;
-    h+=`<text x="${Math.round(x)}" y="${Math.round(y)+10}" text-anchor="${anchor}" font-size="10" fill="#7a8aaa">${a.sub}</text>`;
+    const lx=Math.round(x), ly=Math.round(y);
+    if(a.angle===0){
+      // 右軸だけ2行に折って見切れ防止
+      h+=`<text x="${lx}" y="${ly-8}" text-anchor="start" font-size="12" font-weight="700" fill="#c8d4e8">③股関節の</text>`;
+      h+=`<text x="${lx}" y="${ly+7}" text-anchor="start" font-size="12" font-weight="700" fill="#c8d4e8">外転内転筋</text>`;
+      h+=`<text x="${lx}" y="${ly+21}" text-anchor="start" font-size="10" fill="#7a8aaa">${a.sub}</text>`;
+    } else {
+      h+=`<text x="${lx}" y="${ly-4}" text-anchor="${anchor}" font-size="12" font-weight="700" fill="#c8d4e8">${a.label}</text>`;
+      h+=`<text x="${lx}" y="${ly+10}" text-anchor="${anchor}" font-size="10" fill="#7a8aaa">${a.sub}</text>`;
+    }
   });
   // 凡例
   h+=`<rect x="10" y="8" width="8" height="8" rx="2" fill="#5bc8d8"/>`;
