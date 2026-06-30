@@ -313,14 +313,14 @@ tbody tr:nth-child(even) td{background:rgba(255,255,255,.04);}
 
   <div class="hdr">
     <div class="hdr-l">診断結果</div>
-    <div class="hdr-r"><span id="r_name">後藤</span> 様</div>
+    <div class="hdr-r"><span id="r_name"></span> 様</div>
   </div>
 
   <div class="top-row">
     <div class="score-box">
       <div class="slbl">総合点数</div>
       <div class="score-disp">
-        <span class="score-num" id="r_score">3</span>
+        <span class="score-num" id="r_score">0</span>
         <span class="score-unit">点</span>
       </div>
     </div>
@@ -687,7 +687,7 @@ function renderRELevel(level){
 
 function update(){
   const name=document.getElementById('f_name').value||'';
-
+  setText('r_name', name);
 
   const bw=gv('f_bw');
   const raw={
@@ -710,7 +710,6 @@ function update(){
   const type=ORDER.reduce((low,k)=>avgs[k]<avgs[low]?k:low);
   const td=TYPE_DB[type];
 
-  setText('r_name', name);
   setText('r_score', total);
   const relEl=document.getElementById('r_re_level');
   if(relEl) relEl.innerHTML=renderRELevel(getCurrentStage(total));
