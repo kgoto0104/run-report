@@ -89,7 +89,14 @@ body{font-family:'Hiragino Kaku Gothic Pro','Yu Gothic',sans-serif;background:#0
 .hdr-l{padding:14px 22px;font-size:20px;font-weight:900;letter-spacing:2px;text-transform:uppercase;}
 .hdr-m{padding:14px 20px;font-size:12px;color:rgba(255,255,255,.45);display:flex;align-items:center;gap:5px;letter-spacing:.5px;}
 .hdr-m .tv{color:#ffcb00;font-weight:700;font-size:16px;}
-.hdr-r{padding:14px 22px;font-size:15px;font-weight:600;color:#ffcb00;white-space:nowrap;grid-column:3;letter-spacing:.5px;}
+.hdr-r{padding:10px 22px;font-size:15px;font-weight:600;color:#ffcb00;white-space:nowrap;grid-column:3;letter-spacing:.5px;display:flex;flex-direction:column;align-items:flex-end;gap:2px;}
+.hdr-r-kana{font-size:10px;color:rgba(255,255,255,.38);font-weight:400;letter-spacing:.5px;}
+.customer-strip{background:#060f1c;padding:6px 20px;display:flex;align-items:center;gap:0;font-size:10px;border-bottom:1px solid rgba(255,255,255,.06);flex-wrap:wrap;}
+.cs-item{display:flex;align-items:center;gap:5px;padding:0 14px;border-right:1px solid rgba(255,255,255,.1);}
+.cs-item:first-child{padding-left:0;}
+.cs-item:last-child{border-right:none;}
+.cs-key{color:rgba(255,203,0,.65);font-weight:700;letter-spacing:.5px;white-space:nowrap;}
+.cs-val{color:rgba(255,255,255,.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;}
 
 .slbl{background:#06101e;color:rgba(255,255,255,.75);font-size:10px;font-weight:800;padding:9px 16px;letter-spacing:2px;text-transform:uppercase;border-left:3px solid #ffcb00;border-bottom:1px solid rgba(255,255,255,.06);}
 
@@ -234,13 +241,35 @@ tbody tr:nth-child(even) td{background:rgba(255,255,255,.025);}
 <div class="form-panel" id="person-form">
   <h2>📋 データ入力フォーム — 入力するとレポートが自動更新されます</h2>
 
-  <div class="fg">
-    <label>お客さんの名前</label>
-    <input type="text" id="f_name" value="" oninput="update()">
-  </div>
-  <div class="fg">
-    <label>体重（kg）</label>
-    <input type="number" id="f_bw" value="" step="0.1" min="1" oninput="update()">
+  <div style="background:#1a2035;border-radius:8px;padding:12px 14px;margin-bottom:12px;border-left:3px solid #ffcb00;">
+    <div style="font-size:11px;font-weight:700;color:#ffcb00;letter-spacing:1px;margin-bottom:10px;">顧客情報</div>
+    <div class="fg">
+      <label>名前（漢字）</label>
+      <input type="text" id="f_name" value="" oninput="update()">
+    </div>
+    <div class="fg">
+      <label>名前（ひらがな）</label>
+      <input type="text" id="f_name_kana" value="" placeholder="ごとう けんしょう" oninput="update()">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div class="fg" style="margin-bottom:0;">
+        <label>身長（cm）</label>
+        <input type="number" id="f_height" value="" step="0.1" min="100" oninput="update()">
+      </div>
+      <div class="fg" style="margin-bottom:0;">
+        <label>体重（kg）</label>
+        <input type="number" id="f_bw" value="" step="0.1" min="1" oninput="update()">
+      </div>
+    </div>
+    <div class="fg" style="margin-top:8px;">
+      <label>スポーツ</label>
+      <input type="text" id="f_sports" value="" placeholder="マラソン、トレラン など" oninput="update()">
+    </div>
+    <div class="fg">
+      <label>お悩み</label>
+      <textarea id="f_nayami" rows="2" placeholder="スピードアップしたい、フォームを改善したい…" oninput="update()" style="resize:vertical;min-height:50px;width:100%;background:#0e1726;border:1px solid #2a3a58;border-radius:6px;color:#c8d4e8;padding:8px;font-size:13px;font-family:inherit;"></textarea>
+    </div>
+    <div id="customer-info-preview" style="font-size:11px;color:#7a9abf;margin-top:4px;line-height:1.8;min-height:16px;"></div>
   </div>
 
   <div class="score-block">
@@ -317,9 +346,11 @@ tbody tr:nth-child(even) td{background:rgba(255,255,255,.025);}
 
   <div class="hdr">
     <div class="hdr-l">診断結果</div>
-    <div class="hdr-r"><span id="r_name"></span></div>
+    <div class="hdr-r">
+      <span id="r_name"></span>
+      <span class="hdr-r-kana" id="r_name_kana"></span>
+    </div>
   </div>
-
   <div class="top-row">
     <div class="score-box">
       <div class="slbl">総合点数</div>
@@ -729,6 +760,19 @@ function update(){
   setText('r_name', name ? name+' 様' : ds);
   setText('r_name_bar', name ? name+' 様' : '');
 
+  const kana=(document.getElementById('f_name_kana')||{}).value||'';
+  const height=(document.getElementById('f_height')||{}).value||'';
+  const sports=(document.getElementById('f_sports')||{}).value||'';
+  const nayami=(document.getElementById('f_nayami')||{}).value||'';
+  setText('r_name_kana', kana);
+  // 顧客情報はフォーム内サマリーのみ（レポートには非表示）
+  const infoParts=[];
+  if(sports) infoParts.push('🏃 '+sports);
+  if(height||gv('f_bw')) infoParts.push('📏 '+(height?height+'cm':'')+(height&&gv('f_bw')?' / ':'')+(gv('f_bw')?gv('f_bw')+'kg':''));
+  if(nayami) infoParts.push('💬 '+nayami);
+  const infoEl=document.getElementById('customer-info-preview');
+  if(infoEl) infoEl.textContent=infoParts.join('　');
+
   const bw=gv('f_bw');
   const raw={
     hn:  {r:gv('s_hn_r'),   l:gv('s_hn_l')},
@@ -995,8 +1039,8 @@ function setView(mode){
 }
 
 // ══ 複数人管理 ══
-const FIELD_IDS=['f_name','f_bw','s_hn_r','s_hn_l','s_naiten_r','s_naiten_l','s_gaiten_r','s_gaiten_l','s_kato_r','s_kato_l','s_tt_r','s_tt_l'];
-const DEFAULTS={f_name:'',f_bw:'',s_hn_r:'',s_hn_l:'',s_naiten_r:'',s_naiten_l:'',s_gaiten_r:'',s_gaiten_l:'',s_kato_r:'',s_kato_l:'',s_tt_r:'',s_tt_l:''};
+const FIELD_IDS=['f_name','f_name_kana','f_height','f_bw','f_sports','f_nayami','s_hn_r','s_hn_l','s_naiten_r','s_naiten_l','s_gaiten_r','s_gaiten_l','s_kato_r','s_kato_l','s_tt_r','s_tt_l'];
+const DEFAULTS={f_name:'',f_name_kana:'',f_height:'',f_bw:'',f_sports:'',f_nayami:'',s_hn_r:'',s_hn_l:'',s_naiten_r:'',s_naiten_l:'',s_gaiten_r:'',s_gaiten_l:'',s_kato_r:'',s_kato_l:'',s_tt_r:'',s_tt_l:''};
 
 let persons=[{}];
 let currentIdx=0;
