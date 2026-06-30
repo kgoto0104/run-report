@@ -81,8 +81,8 @@ body{font-family:'Hiragino Kaku Gothic Pro','Yu Gothic',sans-serif;background:#0
 /* ══ レポート ══ */
 .report-wrap{display:flex;flex-direction:column;align-items:center;gap:16px;padding:22px 16px;}
 .page{width:794px;height:1122px;overflow:hidden;background:#0a1628;box-shadow:0 8px 48px rgba(0,0,0,.5);display:flex;flex-direction:column;}
-/* 2枚目: rx-bodyが残りスペースを埋める */
-.page:last-child .rx-body{flex:1;}
+/* 2枚目: rx-bodyが残りスペースを埋め、カードも縦に引き伸ばす */
+.page:last-child .rx-body{flex:1;grid-template-rows:1fr;}
 
 /* Header */
 .hdr{background:#06101e;color:white;display:grid;grid-template-columns:auto 1fr auto;align-items:center;border-bottom:1px solid rgba(255,203,0,0.22);}
@@ -121,6 +121,12 @@ body{font-family:'Hiragino Kaku Gothic Pro','Yu Gothic',sans-serif;background:#0
 .hseg.on{background:linear-gradient(90deg,#1e72a8,#3da3d4);box-shadow:0 0 8px rgba(61,163,212,.3);}
 .horiz-bar-label{font-size:13px;color:#8faabb;font-weight:600;}
 .radar-inner{display:flex;justify-content:center;align-items:center;padding:10px 0;}
+.radar-scores{padding:4px 16px 12px;display:flex;flex-direction:column;gap:5px;}
+.rs-row{display:grid;grid-template-columns:120px 1fr 36px;align-items:center;gap:8px;}
+.rs-lbl{font-size:9.5px;color:rgba(255,255,255,.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rs-bar{height:4px;background:#172540;border-radius:2px;overflow:hidden;}
+.rs-fill{height:100%;background:linear-gradient(90deg,#3da3d4,#ffcb00);border-radius:2px;transition:width .3s;}
+.rs-val{font-size:9.5px;color:#ffcb00;text-align:right;font-variant-numeric:tabular-nums;}
 #radar_svg{width:490px;height:auto;}
 
 /* 課題 */
@@ -362,6 +368,7 @@ tbody tr:nth-child(even) td{background:rgba(255,255,255,.025);}
         <svg id="radar_svg" viewBox="0 0 430 278" width="430" height="278"
              font-family="'Hiragino Kaku Gothic Pro','Yu Gothic',sans-serif"></svg>
       </div>
+      <div id="radar-scores" class="radar-scores"></div>
     </div>
   </div>
 
@@ -591,18 +598,26 @@ function drawRadar(avgs, raw){
       h+=`<circle cx="${x}" cy="${y}" r="2" fill="rgba(255,255,255,.2)"/>`;
     });
   });
+  // データあり判定
+  const hasData=Object.values(raw).some(v=>v.r>0||v.l>0);
+  if(!hasData){
+    h+=`<text x="${CX}" y="${CY+5}" text-anchor="middle" font-size="13" fill="rgba(255,255,255,.22)" font-weight="600">スコアを入力してください</text>`;
+    svg.innerHTML=h;
+    const sc=document.getElementById('radar-scores'); if(sc) sc.innerHTML='';
+    return;
+  }
   // 右足（青）
-  const rPts=AXES.map(a=>pt(a.angle,(Math.max(0.5,raw[a.key].r||1)/5)*R).join(',')).join(' ');
+  const rPts=AXES.map(a=>pt(a.angle,(Math.max(0.1,raw[a.key].r||0)/5)*R).join(',')).join(' ');
   h+=`<polygon points="${rPts}" fill="rgba(91,200,216,.25)" stroke="#5bc8d8" stroke-width="2"/>`;
   AXES.forEach(a=>{
-    const [x,y]=pt(a.angle,(Math.max(0.5,raw[a.key].r||1)/5)*R);
+    const [x,y]=pt(a.angle,(Math.max(0.1,raw[a.key].r||0)/5)*R);
     h+=`<circle cx="${x}" cy="${y}" r="4" fill="#5bc8d8" stroke="white" stroke-width="1.5"/>`;
   });
   // 左足（オレンジ）
-  const lPts=AXES.map(a=>pt(a.angle,(Math.max(0.5,raw[a.key].l||1)/5)*R).join(',')).join(' ');
+  const lPts=AXES.map(a=>pt(a.angle,(Math.max(0.1,raw[a.key].l||0)/5)*R).join(',')).join(' ');
   h+=`<polygon points="${lPts}" fill="rgba(245,158,11,.18)" stroke="#f59e0b" stroke-width="2"/>`;
   AXES.forEach(a=>{
-    const [x,y]=pt(a.angle,(Math.max(0.5,raw[a.key].l||1)/5)*R);
+    const [x,y]=pt(a.angle,(Math.max(0.1,raw[a.key].l||0)/5)*R);
     h+=`<circle cx="${x}" cy="${y}" r="4" fill="#f59e0b" stroke="white" stroke-width="1.5"/>`;
   });
   // 軸ラベル
@@ -626,6 +641,21 @@ function drawRadar(avgs, raw){
   h+=`<rect x="66" y="8" width="8" height="8" rx="2" fill="#f59e0b"/>`;
   h+=`<text x="78" y="16" font-size="10" fill="#c8d4e8">左足</text>`;
   svg.innerHTML=h;
+
+  // スコアサマリーバー
+  const sc=document.getElementById('radar-scores');
+  if(sc){
+    const labels={'hn':'①骨盤立位の安定','kato':'②下腿三頭筋','naiten':'③股関節の外転内転筋','tt':'④柔軟性'};
+    sc.innerHTML=Object.keys(labels).map(k=>{
+      const avg=Math.round((raw[k].r+raw[k].l)/2*10)/10||0;
+      const pct=Math.min(100,(avg/5)*100);
+      return `<div class="rs-row">
+        <div class="rs-lbl">${labels[k]}</div>
+        <div class="rs-bar"><div class="rs-fill" style="width:${pct}%"></div></div>
+        <div class="rs-val">${avg.toFixed(1)}</div>
+      </div>`;
+    }).join('');
+  }
 }
 
 function renderREBar(level){
@@ -694,7 +724,9 @@ function renderRELevel(level){
 
 function update(){
   const name=document.getElementById('f_name').value||'';
-  setText('r_name', name ? name+' 様' : '');
+  const today=new Date();
+  const ds=today.getFullYear()+'年'+(today.getMonth()+1)+'月'+today.getDate()+'日';
+  setText('r_name', name ? name+' 様' : ds);
   setText('r_name_bar', name ? name+' 様' : '');
 
   const bw=gv('f_bw');
