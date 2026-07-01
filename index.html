@@ -240,6 +240,10 @@ tbody tr:nth-child(even) td{background:rgba(255,255,255,.025);}
 <!-- ════ 入力フォーム ════ -->
 <div class="form-panel" id="person-form">
   <h2>📋 データ入力フォーム — 入力するとレポートが自動更新されます</h2>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:11px;color:#7a9abf;">
+    <span id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:#555;display:inline-block;flex-shrink:0;"></span>
+    ライブ同期中 — 同じURLを開いているメンバーに即時反映されます
+  </div>
 
   <div style="background:#1a2035;border-radius:8px;padding:12px 14px;margin-bottom:12px;border-left:3px solid #ffcb00;">
     <div style="font-size:11px;font-weight:700;color:#ffcb00;letter-spacing:1px;margin-bottom:10px;">顧客情報</div>
@@ -270,6 +274,7 @@ tbody tr:nth-child(even) td{background:rgba(255,255,255,.025);}
       <textarea id="f_nayami" rows="2" placeholder="スピードアップしたい、フォームを改善したい…" oninput="update()" style="resize:vertical;min-height:50px;width:100%;background:#0e1726;border:1px solid #2a3a58;border-radius:6px;color:#c8d4e8;padding:8px;font-size:13px;font-family:inherit;"></textarea>
     </div>
     <div id="customer-info-preview" style="font-size:11px;color:#7a9abf;margin-top:4px;line-height:1.8;min-height:16px;"></div>
+    <button id="save-btn" onclick="saveRecord()" style="margin-top:12px;width:100%;padding:13px;background:#ffcb00;color:#06101e;font-size:14px;font-weight:800;border:none;border-radius:8px;cursor:pointer;letter-spacing:.5px;">記録をスプレッドシートに保存</button>
   </div>
 
   <div class="score-block">
@@ -453,6 +458,43 @@ tbody tr:nth-child(even) td{background:rgba(255,255,255,.025);}
 // ══════════════════════════════════════════════
 //  タイプ別コンテンツDB（スプレッドシート 1lJ91EonhDjkOTCFVPufDUSkNXDFsu8K2H3t_w8M26Yo より取得）
 // ══════════════════════════════════════════════
+const GAS_URL='https://script.google.com/macros/s/AKfycbznI7ClRsriPoQ-1leZ8FkLM_rH0WUDYNMLmYuhjuw7UZz7cxyFeOrF9aWBj7XdqPAczQ/exec';
+const FB_URL='https://goto-13570-default-rtdb.firebaseio.com/live';
+let _lastType='',_lastTotal=0,_lastAvgs={hn:0,naiten:0,kato:0,tt:0};
+let _isRemoteUpdate=false, _fbDebounce=null;
+
+// ── Firebase リアルタイム同期 ──
+function pushToFirebase(){
+  if(_isRemoteUpdate) return;
+  clearTimeout(_fbDebounce);
+  _fbDebounce=setTimeout(()=>{
+    const d={};
+    FIELD_IDS.forEach(id=>{const el=document.getElementById(id);if(el)d[id]=el.value;});
+    fetch(FB_URL+'.json',{method:'PUT',body:JSON.stringify(d)}).catch(()=>{});
+  },400);
+}
+
+function startFirebaseSync(){
+  const es=new EventSource(FB_URL+'.json');
+  const dot=document.getElementById('sync-dot');
+  es.addEventListener('put',e=>{
+    try{
+      const {data}=JSON.parse(e.data);
+      if(!data) return;
+      _isRemoteUpdate=true;
+      FIELD_IDS.forEach(id=>{
+        const el=document.getElementById(id);
+        if(el && el!==document.activeElement) el.value=data[id]||'';
+      });
+      update();
+      _isRemoteUpdate=false;
+      if(dot){dot.style.background='#2ecc71';setTimeout(()=>{dot.style.background='#ffcb00';},400);}
+    }catch(err){}
+  });
+  es.onerror=()=>{if(dot) dot.style.background='#e74c3c';};
+  es.onopen=()=>{if(dot) dot.style.background='#ffcb00';};
+}
+
 const TYPE_DB = {
   // ハーフニーリング最低 → 加速タイプ（タイミング・反発）
   hn: {
@@ -814,6 +856,8 @@ function update(){
   renderEx(2, td.ex2);
 
   drawRadar(avgs, raw);
+  _lastType=type; _lastTotal=total; _lastAvgs={...avgs};
+  pushToFirebase();
 }
 
 
@@ -1117,6 +1161,36 @@ document.getElementById('f_name').addEventListener('input',function(){
   renderPersonBar();
 });
 
+// ══ スプレッドシートに記録を保存 ══
+async function saveRecord(){
+  const btn=document.getElementById('save-btn');
+  const orig=btn.textContent;
+  btn.textContent='保存中...'; btn.disabled=true;
+  const now=new Date();
+  const ts=now.getFullYear()+'/'+(now.getMonth()+1)+'/'+now.getDate()+' '+now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
+  const g=id=>document.getElementById(id)?.value||'';
+  const payload={
+    ts, name:g('f_name'), name_kana:g('f_name_kana'),
+    sports:g('f_sports'), height:g('f_height'), bw:g('f_bw'), nayami:g('f_nayami'),
+    hn_r:g('s_hn_r'), hn_l:g('s_hn_l'),
+    naiten_r:g('s_naiten_r'), naiten_l:g('s_naiten_l'),
+    gaiten_r:g('s_gaiten_r'), gaiten_l:g('s_gaiten_l'),
+    kato_r:g('s_kato_r'), kato_l:g('s_kato_l'),
+    tt_r:g('s_tt_r'), tt_l:g('s_tt_l'),
+    avg_hn:_lastAvgs.hn, avg_naiten:_lastAvgs.naiten,
+    avg_kato:_lastAvgs.kato, avg_tt:_lastAvgs.tt,
+    type:_lastType, total:_lastTotal
+  };
+  try{
+    await fetch(GAS_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload)});
+    btn.style.background='#1a6e30'; btn.textContent='✓ 保存しました';
+    setTimeout(()=>{btn.style.background='';btn.textContent=orig;btn.disabled=false;},3000);
+  }catch(e){
+    btn.style.background='#8b2020'; btn.textContent='エラー — もう一度試してください';
+    setTimeout(()=>{btn.style.background='';btn.textContent=orig;btn.disabled=false;},3000);
+  }
+}
+
 // ══ localStorage 永続化 ══
 const STORAGE_VER='v3';
 function saveToStorage(){
@@ -1144,6 +1218,7 @@ window.addEventListener('resize',applyMobileScale);
 
 // ══ 起動 ══
 loadFromStorage();
+startFirebaseSync();
 // フォームに反映
 (function(){
   const d=persons[currentIdx]||{};
