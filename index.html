@@ -461,38 +461,51 @@ tbody tr:nth-child(even) td{background:rgba(255,255,255,.025);}
 const GAS_URL='https://script.google.com/macros/s/AKfycbznI7ClRsriPoQ-1leZ8FkLM_rH0WUDYNMLmYuhjuw7UZz7cxyFeOrF9aWBj7XdqPAczQ/exec';
 const FB_URL='https://goto-13570-default-rtdb.firebaseio.com/live';
 let _lastType='',_lastTotal=0,_lastAvgs={hn:0,naiten:0,kato:0,tt:0};
-let _isRemoteUpdate=false, _fbDebounce=null;
+let _isRemoteUpdate=false, _fbDebounce=null, _lastDataHash=null;
 
-// ── Firebase リアルタイム同期 ──
+// ── Firebase リアルタイム同期（ポーリング方式・1.5秒ごと）──
 function pushToFirebase(){
   if(_isRemoteUpdate) return;
   clearTimeout(_fbDebounce);
-  _fbDebounce=setTimeout(()=>{
+  _fbDebounce=setTimeout(async()=>{
     const d={};
     FIELD_IDS.forEach(id=>{const el=document.getElementById(id);if(el)d[id]=el.value;});
-    fetch(FB_URL+'.json',{method:'PUT',body:JSON.stringify(d)}).catch(()=>{});
+    try{
+      const res=await fetch(FB_URL+'.json',{
+        method:'PUT',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(d)
+      });
+      if(res.ok) _lastDataHash=JSON.stringify(d);
+    }catch(e){}
   },400);
 }
 
-function startFirebaseSync(){
-  const es=new EventSource(FB_URL+'.json');
+async function pollFirebase(){
   const dot=document.getElementById('sync-dot');
-  es.addEventListener('put',e=>{
-    try{
-      const {data}=JSON.parse(e.data);
-      if(!data) return;
-      _isRemoteUpdate=true;
-      FIELD_IDS.forEach(id=>{
-        const el=document.getElementById(id);
-        if(el && el!==document.activeElement) el.value=data[id]||'';
-      });
-      update();
-      _isRemoteUpdate=false;
-      if(dot){dot.style.background='#2ecc71';setTimeout(()=>{dot.style.background='#ffcb00';},400);}
-    }catch(err){}
-  });
-  es.onerror=()=>{if(dot) dot.style.background='#e74c3c';};
-  es.onopen=()=>{if(dot) dot.style.background='#ffcb00';};
+  try{
+    const res=await fetch(FB_URL+'.json');
+    if(!res.ok){if(dot) dot.style.background='#e74c3c'; return;}
+    const data=await res.json();
+    if(!data) return;
+    const hash=JSON.stringify(data);
+    if(hash===_lastDataHash) return;
+    _lastDataHash=hash;
+    _isRemoteUpdate=true;
+    FIELD_IDS.forEach(id=>{
+      const el=document.getElementById(id);
+      if(el && el!==document.activeElement) el.value=data[id]||'';
+    });
+    update();
+    _isRemoteUpdate=false;
+    if(dot){dot.style.background='#2ecc71';setTimeout(()=>{dot.style.background='#ffcb00';},400);}
+  }catch(e){if(dot) dot.style.background='#e74c3c';}
+}
+
+function startFirebaseSync(){
+  const dot=document.getElementById('sync-dot');
+  if(dot) dot.style.background='#ffcb00';
+  setInterval(pollFirebase,1500);
 }
 
 const TYPE_DB = {
